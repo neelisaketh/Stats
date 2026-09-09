@@ -8,7 +8,9 @@ import { useProgress } from "./progress-provider";
 
 const nav = [
   { href: "/learn", label: "Course" },
-  { href: "/lab", label: "Normal lab" },
+  { href: "/practice", label: "Practice" },
+  { href: "/games", label: "Games" },
+  { href: "/animations", label: "Animations" },
   { href: "/reference", label: "Test guide" },
 ];
 

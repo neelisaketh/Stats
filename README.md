@@ -3,7 +3,10 @@
 Statlab is a visual AP Statistics learning site built with Next.js, Supabase, and Vercel. It includes:
 
 - eight AP Statistics units with objectives, worked examples, common mistakes, and checkpoints;
-- an interactive Normal distribution lab;
+- four interactive models: Normal probability, sampling means, confidence interval coverage, and coin-flip convergence;
+- a 40-term vocabulary arcade with randomized ten-question rounds;
+- five-step inference practice for all nine AP test families plus one-way ANOVA;
+- authenticated practice scores stored in Supabase;
 - an inference-procedure reference guide;
 - guest progress saved in the browser; and
 - passwordless email sign-in with progress synced through Supabase.
@@ -145,3 +148,13 @@ All eight units live in `lib/course.ts`. Each unit has a slug, title, summary, o
 - [Supabase: Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [Vercel: deploy GitHub projects](https://vercel.com/docs/git/vercel-for-github)
 - [Vercel: environment variables](https://vercel.com/docs/environment-variables)
+
+## New practice center
+
+- `/practice`: choose a procedure or complete a mixed round. Covers one- and two-proportion z, one- and two-sample t, paired t, chi-square GOF/independence/homogeneity, regression slope t, and ANOVA (extension). Each problem checks procedure selection, null hypothesis, conditions, statistic, and decision with contextual feedback. P-values are supplied at the decision step; this is a guided trainer, not a general-purpose calculator. Numeric answers accept absolute error up to 0.015.
+- `/games`: 10-question vocabulary rounds sampled without replacement from 40 terms, plus a five-pair matching game. Matching boards are unsaved warm-ups.
+- `/animations`: four adjustable models with pause, reset, and manual batches. Simulations cap at 2,000 observations to bound browser work; only the latest 30 confidence intervals are drawn. Sampling uses an Exponential(1) population; the interval model uses a Normal population with known sigma. These assumptions are explicit in the UI.
+
+**Existing Supabase projects:** run `supabase/migrations/202609090001_practice_attempts.sql` in the SQL Editor. New projects can run the full `supabase/schema.sql`. Scores are private per user through RLS and are self-reported practice results, not secure grades. Guests can play without configuration; guest round scores remain on the current screen and are not cloud-saved. Cloud write failures display a message.
+
+The Vercel and Supabase setup above remains applicable. No service-role key is needed. Deploying code does not apply database migrations automatically.

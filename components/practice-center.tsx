@@ -1,0 +1,35 @@
+"use client";
+import { useEffect, useState } from "react";
+import { procedures, vocab } from "@/lib/practice";
+import { createClient } from "@/lib/supabase/client";
+import { useProgress } from "./progress-provider";
+
+function shuffled<T,>(a: readonly T[]): T[] { const result=[...a]; for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}return result; }
+export function PracticeCenter({mode}:{mode:'vocab'|'tests'}) {
+ const {user}=useProgress();
+ const [history,setHistory]=useState<{id:string;activity:string;correct:number;total:number;created_at:string}[]>([]);
+ const [historyError,setHistoryError]=useState('');
+ const [refresh,setRefresh]=useState(0);
+ useEffect(()=>{let active=true;const client=createClient();if(!client||!user)return;
+ void client.from('practice_attempts').select('id,activity,correct,total,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(5).then(({data,error})=>{if(active){setHistory(data??[]);setHistoryError(error?'Saved rounds are unavailable.':'');}});
+ return()=>{active=false;};},[user,refresh]);
+ const [filter,setFilter]=useState('mixed'); const [started,setStarted]=useState(false); const [round,setRound]=useState(0); const [score,setScore]=useState(0); const [choice,setChoice]=useState<string|null>(null); const [numeric,setNumeric]=useState(''); const [deck,setDeck]=useState<number[]>([]); const [options,setOptions]=useState<string[]>([]); const [status,setStatus]=useState(''); const [step,setStep]=useState(0);
+ const index=deck[round]??0; const proc=procedures[index]; const term=vocab[index];
+ const answer=mode==='vocab'?term[0]:step===0?proc.name:step===1?proc.null:step===2?proc.conditions:step===3?String(proc.statistic):proc.p<=0.05?'Reject H₀':'Fail to reject H₀';
+ function setupOptions(idx:number,stage:number){if(mode==='vocab')setOptions(shuffled([vocab[idx][0],...shuffled(vocab.filter((_,i)=>i!==idx)).slice(0,3).map(x=>x[0])]));else {const p=procedures[idx];setOptions(stage===0?shuffled(procedures.map(x=>x.name)):stage===1?shuffled([p.null,p.alternative,'The sample statistic equals zero']):stage===2?shuffled([p.conditions,'A sample size of 30 always guarantees every condition.','A small p-value verifies random sampling and independence.']):['Reject H₀','Fail to reject H₀']);}}
+ function start(){const d=mode==='vocab'?shuffled(vocab.map((_,i)=>i)).slice(0,10):filter==='mixed'?shuffled(procedures.map((_,i)=>i)): [procedures.findIndex(p=>p.id===filter)];setDeck(d);setRound(0);setStep(0);setScore(0);setChoice(null);setNumeric('');setStatus('');setStarted(true);setupOptions(d[0],0);}
+ const correct=step===3&&mode==='tests'?Math.abs(Number(choice)-proc.statistic)<=0.015:choice===answer;
+ function submit(value:string){if(choice!==null)return;setChoice(value); const ok=mode==='tests'&&step===3?Math.abs(Number(value)-proc.statistic)<=0.015:value===answer;if(ok)setScore(s=>s+1);}
+ async function next(){if(mode==='tests'&&step<4){setStep(step+1);setupOptions(index,step+1);}else if(round+1<deck.length){setRound(round+1);setStep(0);setupOptions(deck[round+1],0);}else {setStarted(false);const total=deck.length*(mode==='tests'?5:1);setStatus(`Round complete: ${score}/${total}.`);const client=createClient();if(client&&user){try{const {error}=await client.from('practice_attempts').insert({user_id:user.id,activity:mode==='tests'?`tests:${filter}`:'vocab',correct:score,total});setStatus(`Round complete: ${score}/${total}. ${error?'Cloud save failed; your score remains visible here.':'Saved to your account.'}`);setRefresh(v=>v+1);}catch{setStatus(`Round complete: ${score}/${total}. Cloud save unavailable.`);}}else{setStatus(`Round complete: ${score}/${total}. Sign in to save future rounds to your account.`);} }setChoice(null);setNumeric('');}
+ return <section className="activity-panel">
+ <div className="activity-top"><span className="kicker">{mode==='vocab'?'Vocabulary arcade':'Inference trainer'}</span><span>{started?`${round+1} / ${deck.length} · ${score} points`:'Practice at your own pace'}</span></div>
+ {!started?<><h2>{mode==='vocab'?'Know the idea. Name the term.':'Choose, check, calculate, conclude.'}</h2><p>{mode==='vocab'?'Ten questions per round, drawn from 40 essential terms. Every answer comes with the definition.':'Work through five steps for each procedure: select the test, state H₀, check conditions, calculate the statistic, and decide at α = 0.05.'}</p>{mode==='tests'&&<label className="field">Procedure<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="mixed">Mixed practice — all 10 procedures</option>{procedures.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}<button className="button button-accent" onClick={start}>Start a round</button><p role="status">{status}</p>{user&&<details className="reflection"><summary>Recent saved rounds</summary>{historyError?<p>{historyError}</p>:history.length?<ul>{history.map(h=><li key={h.id}>{h.activity === 'vocab'?'Vocabulary':`Inference · ${h.activity.split(':')[1]}`} — {h.correct}/{h.total} · {new Date(h.created_at).toLocaleDateString()}</li>)}</ul>:<p>Complete your first round to save a score.</p>}</details>}</>:<>
+ <progress aria-label="Round progress" value={round*(mode==='tests'?5:1)+(mode==='tests'?step:0)} max={deck.length*(mode==='tests'?5:1)}/>
+ {mode==='tests'&&<><p className="scenario">{proc.scenario}</p><p className="muted">{proc.parameter}</p></>}
+ <h2>{mode==='vocab'?term[1]:['Which inference procedure fits?','What is the null hypothesis?','Which conditions and degrees of freedom apply?','Calculate the test statistic (within 0.015).',`The p-value is ${proc.p}. What is your decision at α = 0.05?`][step]}</h2>
+ {mode==='tests'&&step===3?<form onSubmit={e=>{e.preventDefault();if(numeric.trim()&&Number.isFinite(Number(numeric)))submit(numeric);}}><label className="field">Test statistic<input type="number" step="any" required value={numeric} disabled={choice!==null} onChange={e=>setNumeric(e.target.value)}/></label><button className="button button-dark" disabled={choice!==null}>Check calculation</button></form>:<div className="answer-grid">{options.map(option=><button key={option} disabled={choice!==null} className={`answer ${choice!==null&&option===answer?'answer-correct':''} ${choice===option&&option!==answer?'answer-wrong':''}`} onClick={()=>submit(option)}>{option}</button>)}</div>}
+ {choice!==null&&<div className={`answer-feedback ${correct?'is-correct':''}`} role="status"><strong>{correct?'Correct.':'Keep practicing.'}</strong><p>{mode==='vocab'?`${term[0]}: ${term[1]}`:step===3?`${proc.calculation} = ${proc.statistic}.`:step===4?proc.conclusion:`Answer: ${answer}`}</p>{mode==='tests'&&<p>{proc.trap}</p>}<button className="button button-dark" onClick={()=>void next()}>{round===deck.length-1&&(mode==='vocab'||step===4)?'Finish round':'Continue'}</button></div>}
+ <button className="text-button exit-round" onClick={()=>{setStarted(false);setStatus('Round ended without saving.');}}>End round</button>
+ </>}
+ </section>;
+}
