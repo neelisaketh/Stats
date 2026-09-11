@@ -1,2 +1,2 @@
-import { PracticeCenter } from "@/components/practice-center";
-export default function PracticePage(){return <main className="page-shell activity-page"><div className="activity-heading"><span className="kicker">Statlab / Practice</span><h1>Build your inference instincts.</h1><p>All AP Statistics significance-test families, plus one-way ANOVA as an extension.</p></div><PracticeCenter mode="tests"/></main>}
+import { redirect } from "next/navigation";
+export default function Page(){redirect("/");}

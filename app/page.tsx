@@ -1,5 +1,2 @@
-import Link from "next/link";
-import {ArrowUpRight,BookOpen,FlaskConical,Gamepad2,Target} from "lucide-react";
-import {SimulationStudio} from "@/components/simulation-studio";
-const activities=[{href:'/practice',icon:Target,label:'Test practice',title:'Which test? And why?',text:'10 procedures · guided calculations and conclusions'}, {href:'/games',icon:Gamepad2,label:'Vocabulary arcade',title:'Put your intuition to the test.',text:'40 terms · randomized ten-question rounds'}, {href:'/learn',icon:BookOpen,label:'Course notebook',title:'Build the foundations.',text:'8 units · examples and checkpoints'}];
-export default function Home(){return <main className="page-shell activity-page"><div className="workspace-intro"><div><span className="kicker">AP Statistics · learn by doing</span><h1>Your statistics playground.</h1><p>Practice the language, work through inference, and make probability move.</p></div><Link href="/reference" className="button button-dark">Test reference <ArrowUpRight size={18}/></Link></div><div className="activity-links">{activities.map(a=><Link href={a.href} key={a.href} className="activity-link"><div><a.icon size={24}/><ArrowUpRight size={20}/></div><span className="kicker">{a.label}</span><h2>{a.title}</h2><p>{a.text}</p></Link>)}</div><div className="studio-heading"><h2><FlaskConical size={25}/> Experiment of the day</h2><Link href="/animations">Open animation studio ↗</Link></div><SimulationStudio/></main>}
+import QuizBuilder from '@/components/quiz-builder';
+export default function Home(){return <QuizBuilder/>;}

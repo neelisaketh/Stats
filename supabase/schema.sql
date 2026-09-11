@@ -1,6 +1,8 @@
 -- Statlab progress storage
 -- Run this entire file in Supabase Dashboard > SQL Editor.
 
+create extension if not exists pgcrypto;
+
 create table if not exists public.lesson_progress (
   user_id uuid not null references auth.users(id) on delete cascade,
   lesson_id text not null,
