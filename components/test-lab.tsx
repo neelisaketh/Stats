@@ -1,0 +1,55 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Calculator, Check, ChevronRight, RotateCcw, Sparkles } from "lucide-react";
+import { InferenceQuestion, QUESTION_BANK, TEST_BY_ID, TESTS } from "@/lib/questions";
+import { useProgress } from "./progress-provider";
+
+type Target = "stat"|"p"|"ci"|"decision";
+type Stage = "identify"|Target;
+const targetNames: Record<Target,string> = {stat:"Test statistic",p:"P-value",ci:"95% confidence interval",decision:"Compare with α"};
+const shuffle=<T,>(a:T[])=>{const b=[...a];for(let i=b.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
+
+export function TestLab(){
+  const { seenQuestions, recordQuestion, recordActivity, user } = useProgress();
+  const [chosen,setChosen]=useState(TESTS.map(t=>t.id));
+  const [guess,setGuess]=useState(true),[solve,setSolve]=useState(true);
+  const [targets,setTargets]=useState<Target[]>(["stat","p","decision"]);
+  const [mode,setMode]=useState<"round"|"continuous">("round"),[count,setCount]=useState(10);
+  const [deck,setDeck]=useState<InferenceQuestion[]>([]),[index,setIndex]=useState(0),[stageIndex,setStageIndex]=useState(0);
+  const [input,setInput]=useState(""),[input2,setInput2]=useState(""),[feedback,setFeedback]=useState<{ok:boolean;message:string}|null>(null);
+  const [questionCorrect,setQuestionCorrect]=useState(true),[results,setResults]=useState<boolean[]>([]),[done,setDone]=useState(false),[calc,setCalc]=useState(false);
+  const active=deck[index], stages=useMemo<Stage[]>(()=>active?[...(guess?["identify" as Stage]:[]),...(solve?targets.filter(t=>t!=="ci"||Boolean(active.ci)):[])]:[],[active,guess,solve,targets]);
+  const stage=stages[stageIndex];
+  const ciOnly=!guess&&solve&&targets.length===1&&targets[0]==="ci";
+  const available=QUESTION_BANK.filter(q=>chosen.includes(q.family)&&(!ciOnly||Boolean(q.ci)));
+  const unseen=available.filter(q=>!seenQuestions.includes(q.id));
+
+  function toggle<T>(value:T,list:T[],set:(v:T[])=>void){set(list.includes(value)?list.filter(x=>x!==value):[...list,value]);}
+  function start(){const pool=unseen.length?unseen:available;const size=mode==="round"?Math.min(count,pool.length):pool.length;setDeck(shuffle(pool).slice(0,size));setIndex(0);setStageIndex(0);setResults([]);setDone(false);setFeedback(null);setQuestionCorrect(true);setInput("");setInput2("");setCalc(false);}
+  function expected(){if(stage==="identify")return TEST_BY_ID[active.family].name;if(stage==="stat")return active.testStatistic;if(stage==="p")return active.pValue;if(stage==="ci")return active.ci;if(stage==="decision")return active.decision;}
+  function submit(value?:string){if(feedback)return;const response=value??input;let ok=false,message="";const answer=expected();
+    if(stage==="identify"||stage==="decision"){ok=response===answer;message=ok?"Exactly right.":`Correct answer: ${answer}`;}
+    else if(stage==="ci"&&active.ci){const a=Number(input),b=Number(input2);ok=Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-active.ci[0])<=.012&&Math.abs(b-active.ci[1])<=.012;message=ok?"Your interval is correct.":`95% CI: (${active.ci[0].toFixed(4)}, ${active.ci[1].toFixed(4)})`;}
+    else {const n=Number(response),target=Number(answer),tol=stage==="p"?.0035:.012;ok=Number.isFinite(n)&&Math.abs(n-target)<=tol;message=ok?"Calculation correct.":`${stage==="p"?"p":"statistic"} = ${target.toFixed(4)}`;}
+    setQuestionCorrect(c=>c&&ok);setFeedback({ok,message});
+  }
+  async function advance(){setFeedback(null);setInput("");setInput2("");setCalc(false);if(stageIndex<stages.length-1){setStageIndex(stageIndex+1);return;}const nextResults=[...results,questionCorrect];setResults(nextResults);await recordQuestion(active.id,questionCorrect);if(index+1>=deck.length){setDone(true);await recordActivity("Inference Test Lab",nextResults.filter(Boolean).length,nextResults.length);}else{setIndex(index+1);setStageIndex(0);setQuestionCorrect(true);}}
+  function finish(){if(results.length){void recordActivity("Inference Test Lab",results.filter(Boolean).length,results.length);}setDone(true);}
+  const canStart=available.length>0&&chosen.length>0&&(guess||solve)&&(!solve||targets.length>0)&&count>0;
+
+  if(done)return <main className="activity-page wrap"><section className="result-card"><div className="result-ring"><strong>{results.length?Math.round(results.filter(Boolean).length/results.length*100):0}%</strong><span>accuracy</span></div><div><span className="kicker">Round complete</span><h1>{results.filter(Boolean).length} of {results.length} questions mastered</h1><p>{user?"Your completed questions and score are synced to your account.":"Your progress is saved on this device. Sign in anytime to sync it."}</p><button className="button button-accent" onClick={()=>{setDeck([]);setDone(false);}}>Build another quiz <RotateCcw size={17}/></button></div></section></main>;
+
+  if(!active)return <main className="activity-page wrap"><div className="activity-heading"><div><span className="kicker">Practice / statistical inference</span><h1>Build an inference quiz.</h1><p>Every procedure has exactly 100 original, AP-style questions.</p></div><div className="bank-badge"><strong>1,000</strong><span>questions</span></div></div>
+    <div className="builder-grid"><section className="builder-panel wide-panel"><div className="panel-title"><span>1</span><div><h2>Choose procedures</h2><p>Check every test you want in the mix.</p></div><button className="quiet-button" onClick={()=>setChosen(chosen.length===TESTS.length?[]:TESTS.map(t=>t.id))}>{chosen.length===TESTS.length?"Clear all":"Select all"}</button></div><div className="test-choice-grid">{TESTS.map(test=><label className={chosen.includes(test.id)?"choice-card selected":"choice-card"} key={test.id}><input type="checkbox" checked={chosen.includes(test.id)} onChange={()=>toggle(test.id,chosen,setChosen)}/><span><strong>{test.name}</strong><small>{test.description}</small></span><em>{test.id==="anova"?"100 · extension":"100"}</em></label>)}</div></section>
+    <aside className="builder-panel"><div className="panel-title"><span>2</span><div><h2>Choose the challenge</h2><p>Identification comes before solving.</p></div></div><label className="big-check"><input type="checkbox" checked={guess} onChange={e=>setGuess(e.target.checked)}/><span><strong>Guess the correct test</strong><small>Read the design and select the procedure.</small></span></label><label className="big-check"><input type="checkbox" checked={solve} onChange={e=>setSolve(e.target.checked)}/><span><strong>Solve</strong><small>Use the data to finish selected steps.</small></span></label>{solve&&<div className="subchecks">{(Object.keys(targetNames) as Target[]).map(t=><label key={t}><input type="checkbox" checked={targets.includes(t)} onChange={()=>toggle(t,targets,setTargets)}/>{targetNames[t]}</label>)}</div>}
+    <div className="panel-title pace-title"><span>3</span><div><h2>Set your pace</h2></div></div><div className="segmented"><button className={mode==="round"?"active":""} onClick={()=>setMode("round")}>Scored round</button><button className={mode==="continuous"?"active":""} onClick={()=>setMode("continuous")}>Question by question</button></div>{mode==="round"&&<label className="count-input">Questions <input type="number" min="1" max="1000" value={count} onChange={e=>setCount(Number(e.target.value))}/></label>}<div className="ready-row"><span>{unseen.length} unseen in selection</span><strong>{chosen.length} tests</strong></div><button className="button button-accent full" disabled={!canStart} onClick={start}>Start quiz <ChevronRight size={18}/></button></aside></div></main>;
+
+  return <main className="activity-page wrap"><div className="quiz-top"><div><span className="kicker">{TEST_BY_ID[active.family].name} · {active.id}</span><strong>Question {index+1}{mode==="round"?` of ${deck.length}`:""}</strong></div><div className="score-pill">{results.filter(Boolean).length} correct</div></div><div className="progress-track"><span style={{width:`${((index+stageIndex/Math.max(1,stages.length))/deck.length)*100}%`}}/></div>
+    <div className="question-layout"><section className="question-card"><div className="stage-label"><span>{stageIndex+1}</span>{stage==="identify"?"Choose the correct procedure":targetNames[stage as Target]}</div><h1>{stage==="identify"?"Which inference procedure fits?":stage==="decision"?`Use α = ${active.alpha}`:"Solve this step"}</h1><p className="problem-copy">{active.prompt}</p>
+    {(stage==="identify")&&<div className="answer-grid">{TESTS.map(test=><button disabled={!!feedback} key={test.id} onClick={()=>submit(test.name)}>{test.name}</button>)}</div>}
+    {stage==="decision"&&<div className="answer-grid two"><button disabled={!!feedback} onClick={()=>submit("Reject H₀")}>Reject H₀</button><button disabled={!!feedback} onClick={()=>submit("Fail to reject H₀")}>Fail to reject H₀</button></div>}
+    {["stat","p","ci"].includes(stage)&&<form onSubmit={e=>{e.preventDefault();submit();}}><div className="numeric-answer"><label>{stage==="stat"?"Test statistic":stage==="p"?"P-value":"Lower bound"}<input value={input} onChange={e=>setInput(e.target.value)} inputMode="decimal" autoFocus placeholder="0.0000" disabled={!!feedback}/></label>{stage==="ci"&&<label>Upper bound<input value={input2} onChange={e=>setInput2(e.target.value)} inputMode="decimal" placeholder="0.0000" disabled={!!feedback}/></label>}<button className="button button-dark" disabled={!!feedback}>Check</button></div><p className="microcopy">Round to four decimal places.</p></form>}
+    {feedback&&<div className={feedback.ok?"answer-feedback correct":"answer-feedback incorrect"}><div>{feedback.ok?<Check/>:<Sparkles/>}<strong>{feedback.message}</strong></div><p>{active.explanation}</p><button className="button button-accent" onClick={()=>void advance()}>{stageIndex<stages.length-1?"Next step":"Next question"}<ChevronRight size={17}/></button></div>}
+    </section><aside className="calculator-card"><button className="calculator-head" onClick={()=>setCalc(!calc)}><span><Calculator/> On-screen TI-84</span><ChevronRight className={calc?"turned":""}/></button><p>Run the matching TI-84 function without leaving the page.</p><code>{active.tiCommand}</code>{calc?<div className="calc-output"><span>STAT</span><strong>{active.testStatistic.toFixed(4)}</strong><span>P</span><strong>{active.pValue.toFixed(4)}</strong>{active.ci&&<><span>95% CI</span><strong>({active.ci[0].toFixed(4)}, {active.ci[1].toFixed(4)})</strong></>}</div>:<button className="button button-outline full" onClick={()=>setCalc(true)}>Run command</button>}<div className="calc-tip">Treat this like the DISTR or STAT TESTS menu on a calculator.</div></aside></div><button className="finish-link" onClick={finish}>Finish and score this session</button></main>;
+}
