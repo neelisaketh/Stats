@@ -14,7 +14,7 @@ A modern AP Statistics learning site built with Next.js, Supabase, and Vercel.
 - Interactive Plinko and normal curve lesson
 - Guest progress in local storage; optional Supabase email sign-in and cloud progress
 
-The problem bank is original and deterministic. It does not reproduce copyrighted AP exam questions. One-way ANOVA is clearly marked as a course extension beyond the core AP Statistics exam.
+The problem bank is original and deterministic. Each problem includes a realistic study setup, population parameter, design, condition checks, numerical work, and contextual interpretation. The structure is modeled on the [College Board released FRQ archive](https://apcentral.collegeboard.org/courses/ap-statistics/exam/past-exam-questions) and [AP Statistics Course and Exam Description](https://apcentral.collegeboard.org/media/pdf/ap-statistics-course-and-exam-description.pdf); it does not reproduce copyrighted exam questions. One-way ANOVA is clearly marked as a course extension beyond the core AP Statistics exam.
 
 ## Run locally
 
