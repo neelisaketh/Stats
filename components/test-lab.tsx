@@ -1,6 +1,7 @@
 "use client";
+import { ScoreResult } from "./score-result";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Calculator, Check, ChevronRight, RotateCcw, Sparkles } from "lucide-react";
 import { InferenceQuestion, QUESTION_BANK, TEST_BY_ID, TESTS } from "@/lib/questions";
 import { useProgress } from "./progress-provider";
@@ -11,6 +12,7 @@ const targetNames: Record<Target,string> = {stat:"Test statistic",p:"P-value",ci
 const shuffle=<T,>(a:T[])=>{const b=[...a];for(let i=b.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
 
 export function TestLab(){
+  const advancing=useRef(false);
   const { seenQuestions, recordQuestion, recordActivity, user } = useProgress();
   const [chosen,setChosen]=useState(TESTS.map(t=>t.id));
   const [guess,setGuess]=useState(true),[solve,setSolve]=useState(true);
@@ -30,15 +32,15 @@ export function TestLab(){
   function expected(){if(stage==="identify")return TEST_BY_ID[active.family].name;if(stage==="stat")return active.testStatistic;if(stage==="p")return active.pValue;if(stage==="ci")return active.ci;if(stage==="decision")return active.decision;}
   function submit(value?:string){if(feedback)return;const response=value??input;let ok=false,message="";const answer=expected();
     if(stage==="identify"||stage==="decision"){ok=response===answer;message=ok?"Exactly right.":`Correct answer: ${answer}`;}
-    else if(stage==="ci"&&active.ci){const a=Number(input),b=Number(input2);ok=Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-active.ci[0])<=.012&&Math.abs(b-active.ci[1])<=.012;message=ok?"Your interval is correct.":`95% CI: (${active.ci[0].toFixed(4)}, ${active.ci[1].toFixed(4)})`;}
-    else {const n=Number(response),target=Number(answer),tol=stage==="p"?.0035:.012;ok=Number.isFinite(n)&&Math.abs(n-target)<=tol;message=ok?"Calculation correct.":`${stage==="p"?"p":"statistic"} = ${target.toFixed(4)}`;}
+    else if(stage==="ci"&&active.ci){const a=Number(input),b=Number(input2);ok=Boolean(input.trim()&&input2.trim())&&Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-active.ci[0])<=.012&&Math.abs(b-active.ci[1])<=.012;message=ok?"Your interval is correct.":`95% CI: (${active.ci[0].toFixed(4)}, ${active.ci[1].toFixed(4)})`;}
+    else {const n=Number(response),target=Number(answer),tol=stage==="p"?.0035:.012;ok=Boolean(response.trim())&&Number.isFinite(n)&&Math.abs(n-target)<=tol;message=ok?"Calculation correct.":`${stage==="p"?"p":"statistic"} = ${target.toFixed(4)}`;}
     setQuestionCorrect(c=>c&&ok);setFeedback({ok,message});
   }
-  async function advance(){setFeedback(null);setInput("");setInput2("");setCalc(false);if(stageIndex<stages.length-1){setStageIndex(stageIndex+1);return;}const nextResults=[...results,questionCorrect];setResults(nextResults);await recordQuestion(active.id,questionCorrect);if(index+1>=deck.length){setDone(true);await recordActivity("Inference Test Lab",nextResults.filter(Boolean).length,nextResults.length);}else{setIndex(index+1);setStageIndex(0);setQuestionCorrect(true);}}
-  function finish(){if(results.length){void recordActivity("Inference Test Lab",results.filter(Boolean).length,results.length);}setDone(true);}
-  const canStart=available.length>0&&chosen.length>0&&(guess||solve)&&(!solve||targets.length>0)&&count>0;
+  async function advance(){if(advancing.current)return;advancing.current=true;try{setFeedback(null);setInput("");setInput2("");setCalc(false);if(stageIndex<stages.length-1){setStageIndex(stageIndex+1);return;}const nextResults=[...results,questionCorrect];setResults(nextResults);await recordQuestion(active.id,questionCorrect);if(index+1>=deck.length){setDone(true);await recordActivity("Inference Test Lab",nextResults.filter(Boolean).length,nextResults.length);}else{setIndex(index+1);setStageIndex(0);setQuestionCorrect(true);}}finally{advancing.current=false;}}
+  function finish(){if(advancing.current)return;if(results.length){void recordActivity("Inference Test Lab",results.filter(Boolean).length,results.length);}setDone(true);}
+  const canStart=available.length>0&&chosen.length>0&&(guess||solve)&&(!solve||targets.length>0)&&Number.isInteger(count)&&count>0&&count<=1000;
 
-  if(done)return <main className="activity-page wrap"><section className="result-card"><div className="result-ring"><strong>{results.length?Math.round(results.filter(Boolean).length/results.length*100):0}%</strong><span>accuracy</span></div><div><span className="kicker">Round complete</span><h1>{results.filter(Boolean).length} of {results.length} questions mastered</h1><p>{user?"Your completed questions and score are synced to your account.":"Your progress is saved on this device. Sign in anytime to sync it."}</p><button className="button button-accent" onClick={()=>{setDeck([]);setDone(false);}}>Build another quiz <RotateCcw size={17}/></button></div></section></main>;
+  if(done)return <main className="activity-page wrap"><section className="result-card"><div className="result-ring"><strong>{results.length?Math.round(results.filter(Boolean).length/results.length*100):0}%</strong><span>accuracy</span></div><div><span className="kicker">Round complete</span><h1>{results.filter(Boolean).length} of {results.length} questions mastered</h1><p>{user?"Your round is complete. Check your save status below.":"Your progress is saved on this device. Sign in anytime to sync it."}</p><button className="button button-accent" onClick={()=>{setDeck([]);setDone(false);}}>Build another quiz <RotateCcw size={17}/></button></div></section>{results.length>0&&<ScoreResult activity="Inference Test Lab"/>}</main>;
 
   if(!active)return <main className="activity-page wrap"><div className="activity-heading"><div><span className="kicker">Practice / statistical inference</span><h1>Build an inference quiz.</h1><p>Every procedure has exactly 100 original, in-depth AP-style questions.</p><p className="source-note">Question structure is modeled on the <a href="https://apcentral.collegeboard.org/courses/ap-statistics/exam/past-exam-questions" target="_blank" rel="noreferrer">released AP Statistics free-response archive</a> and the <a href="https://apcentral.collegeboard.org/media/pdf/ap-statistics-course-and-exam-description.pdf" target="_blank" rel="noreferrer">current course framework</a>. All scenarios and data here are original.</p></div><div className="bank-badge"><strong>1,000</strong><span>questions</span></div></div>
     <div className="builder-grid"><section className="builder-panel wide-panel"><div className="panel-title"><span>1</span><div><h2>Choose procedures</h2><p>Check every test you want in the mix.</p></div><button className="quiet-button" onClick={()=>setChosen(chosen.length===TESTS.length?[]:TESTS.map(t=>t.id))}>{chosen.length===TESTS.length?"Clear all":"Select all"}</button></div><div className="test-choice-grid">{TESTS.map(test=><label className={chosen.includes(test.id)?"choice-card selected":"choice-card"} key={test.id}><input type="checkbox" checked={chosen.includes(test.id)} onChange={()=>toggle(test.id,chosen,setChosen)}/><span><strong>{test.name}</strong><small>{test.description}</small></span><em>{test.id==="anova"?"100 · extension":"100"}</em></label>)}</div></section>

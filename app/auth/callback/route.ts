@@ -10,7 +10,11 @@ export async function GET(request: Request) {
   if (code && isSupabaseConfigured) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}/learn`);
+    if (!error) {
+      if (url.searchParams.get("next") === "/auth/reset-password") return NextResponse.redirect(`${origin}/auth/reset-password`);
+      const { data: admin } = await supabase.from("administrators").select("user_id").maybeSingle();
+      return NextResponse.redirect(`${origin}${admin ? "/admin" : "/account"}`);
+    }
   }
 
   return NextResponse.redirect(`${origin}/auth?error=callback`);

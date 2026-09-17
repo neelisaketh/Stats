@@ -11,7 +11,7 @@ export default function Home() {
           <p>Build intuition first. Then practice until the method feels automatic.</p>
           <div className="hero-actions">
             <Link className="button button-accent" href="/practice">Start practicing <ArrowRight size={18} /></Link>
-            <Link className="button button-outline" href="/learn">Explore the lesson</Link>
+            <Link className="button button-outline" href="/learn">Explore lessons</Link>
           </div>
         </div>
         <div className="hero-visual" aria-label="A dot plot settling into a bell curve">
@@ -30,7 +30,7 @@ export default function Home() {
         <div className="wrap">
           <div className="section-title-row">
             <div><span className="kicker">Choose your path</span><h2>Learn it. Test it. Play it.</h2></div>
-            <p>One focused activity in each mode—designed to work together.</p>
+            <p>Choose a lesson, quiz, or game and take the next step.</p>
           </div>
           <div className="feature-grid">
             <Link className="feature-card navy" href="/practice">
@@ -41,12 +41,12 @@ export default function Home() {
             <Link className="feature-card blue" href="/normal">
               <span className="feature-icon"><BarChart3 /></span><span className="feature-number">02</span>
               <h3>Normal Curve Quiz</h3><p>Find z-scores and areas, then drag curve bounds to prove you can see the answer.</p>
-              <span className="card-link">Open quiz <ArrowRight size={17} /></span>
+              <span className="card-link">Browse quizzes <ArrowRight size={17} /></span>
             </Link>
             <Link className="feature-card coral" href="/games">
               <span className="feature-icon"><Gamepad2 /></span><span className="feature-number">03</span>
               <h3>Notation Match</h3><p>Pair symbols with their meanings in a fast concentration game.</p>
-              <span className="card-link">Play a round <ArrowRight size={17} /></span>
+              <span className="card-link">Explore games <ArrowRight size={17} /></span>
             </Link>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function Home() {
       <section className="lesson-callout wrap">
         <div className="lesson-orbit" aria-hidden="true"><Sparkles size={28} /><span>μ</span><span>σ</span><span>z</span></div>
         <div><span className="kicker">Interactive lesson</span><h2>Watch randomness become a normal curve.</h2><p>Drop hundreds of balls through a Plinko board, explore z-score bounds, and see the probability equation update live.</p></div>
-        <Link className="button button-dark" href="/learn">Begin normal curves <ArrowRight size={18} /></Link>
+        <Link className="button button-dark" href="/learn">Explore normal curves <ArrowRight size={18} /></Link>
       </section>
     </main>
   );
